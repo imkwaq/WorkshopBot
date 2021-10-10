@@ -15,24 +15,30 @@ public static class BotExtensions
 
     public static async Task HandleCallbackQuery(this ITelegramBotClient client, CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
-        var random = new Random();
         var callbackUsername = callbackQuery.From.Username;
         var chatId = callbackQuery.Message.Chat.Id;
 
         if (!callbackQuery.Message.Text.Contains(callbackUsername))
         {
             await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, string.Format(CantPlayAnotherPersonsGame, callbackUsername), cancellationToken: cancellationToken);
-            return;
         }
+        else
+        {
+            await client.PublishGameResult(chatId, callbackUsername, callbackQuery.Data, cancellationToken);
+        }
+    }
 
-        if (Enum.TryParse<Move>(callbackQuery.Data, true, out Move move))
+    private static async Task PublishGameResult(this ITelegramBotClient client, long chatId, string username, string message, CancellationToken cancellationToken)
+    {
+        var random = new Random();
+        if (Enum.TryParse<Move>(message, true, out Move move))
         {
             var botMove = (Move)random.Next(3);
             var gameLog = $"Bot option: `{botMove}`, your option: `{move}`";
             var task = (move, botMove) switch
             {
-                (Rock, Paper) or (Paper, Scissors) or (Scissors, Rock) => client.SendTextMessageAsync(chatId, $"Sorry, @{callbackUsername}, but you lose. {gameLog}", cancellationToken: cancellationToken),
-                (Rock, Scissors) or (Paper, Rock) or (Scissors, Paper) => client.SendTextMessageAsync(chatId, $"Hurray! You win, @{callbackUsername}, congrats! {gameLog}", cancellationToken: cancellationToken),
+                (Rock, Paper) or (Paper, Scissors) or (Scissors, Rock) => client.SendTextMessageAsync(chatId, $"Sorry, @{username}, but you lose. {gameLog}", cancellationToken: cancellationToken),
+                (Rock, Scissors) or (Paper, Rock) or (Scissors, Paper) => client.SendTextMessageAsync(chatId, $"Hurray! You win, @{username}, congrats! {gameLog}", cancellationToken: cancellationToken),
                 _ => client.SendTextMessageAsync(chatId, $"This game was a draw. {gameLog}", cancellationToken: cancellationToken)
             };
 
